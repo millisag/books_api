@@ -1,4 +1,5 @@
 class BooksController < ApplicationController
+    before_action :authenticate_request, except: [:index, :show]
     before_action :set_book, only: [:show, :update, :destroy]
 
     def index
@@ -11,7 +12,7 @@ class BooksController < ApplicationController
     end
 
     def create
-      book = Book.new(book_params)
+      book = @current_user.books.new(book_params)
       if book.save
         render json: BookBlueprint.render(book), status: :created
       else
@@ -20,7 +21,9 @@ class BooksController < ApplicationController
     end
 
     def update
-      if @book.update(book_params)
+      if @book.user_id != @current_user.id
+        render json: { error: "Not authorized" }, status: :forbidden
+      elsif @book.update(book_params)
         render json: BookBlueprint.render(@book), status: :ok
       else
         render json: @book.errors, status: :unprocessable_entity
@@ -28,6 +31,9 @@ class BooksController < ApplicationController
     end
 
     def destroy
+      if @book.user_id != @current_user.id
+        render json: { error: "Not authorized" }, status: :forbidden
+      else
       @book.destroy
       head :no_content
     end
